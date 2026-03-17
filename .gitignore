@@ -1,0 +1,25 @@
+# Personal device configuration — never commit this
+config_local.py
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Captured BLE logs (may contain device identifiers)
+*.log
+*.zip
+btsnoop*
+bugreport*
+
+# APK files — do not distribute third-party app binaries
+*.apk
