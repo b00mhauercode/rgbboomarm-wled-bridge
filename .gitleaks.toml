@@ -1,0 +1,30 @@
+# Gitleaks configuration for rgbboomarm-controller
+# Docs: https://github.com/gitleaks/gitleaks
+
+[extend]
+# Use the default gitleaks ruleset as the base
+useDefault = true
+
+[allowlist]
+description = "Known safe placeholders and protocol constants in this repo"
+
+regexes = [
+    # Placeholder MAC addresses used in docs/config templates
+    '''XX:XX:XX:XX:XX:XX''',
+    '''XXXXXXXXXXXX''',
+    # Placeholder rolling code in config.py
+    '''XXXXXXXX''',
+    # FBFBFB protocol magic bytes — these are fixed protocol constants, not secrets
+    '''fbfbfb''',
+    '''FBFBFB''',
+    # BLE service UUIDs — public spec values, not secrets
+    '''0000fff[0-9a-f]-0000-1000-8000-00805f9b34fb''',
+    '''0026bb765291''',
+]
+
+paths = [
+    # These files intentionally contain placeholder secrets for documentation
+    '''config\.py''',
+    '''README\.md''',
+    '''CLAUDE\.md''',
+]
