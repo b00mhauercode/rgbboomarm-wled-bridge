@@ -23,3 +23,6 @@ bugreport*
 
 # APK files — do not distribute third-party app binaries
 *.apk
+
+# Throwaway test/scratch scripts
+test_*.py

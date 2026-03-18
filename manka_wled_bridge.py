@@ -20,37 +20,17 @@ import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse
 from bleak import BleakClient
+from manka_proto import DEVICE_MAC, ROLLING, FFF3_UUID, FFF4_UUID, pkt_color, pkt_off
 
-# ── Configuration — fill these in before running ───────────────────────────────
-DEVICE_MAC = "XX:XX:XX:XX:XX:XX"   # Your device MAC (use a BLE scanner app to find it)
-ROLLING    = bytes.fromhex("XXXXXXXX")  # Your 4-byte rolling code — see README for how to find it
-WLED_MAC   = "XXXXXXXXXXXX"            # Device MAC without colons, 12 hex chars (used as WLED device ID)
-# ──────────────────────────────────────────────────────────────────────────────
-
-FFF3_UUID  = "0000fff3-0000-1000-8000-00805f9b34fb"
-FFF4_UUID  = "0000fff4-0000-1000-8000-00805f9b34fb"
+try:
+    from config_local import WLED_MAC
+except ImportError:
+    from config import WLED_MAC
 
 HTTP_PORT       = 80
 UDP_PORT        = 21324
 SEND_INTERVAL   = 0.05   # max 20 Hz BLE writes
 RECONNECT_DELAY = 5.0
-
-
-# ── BLE packet builders ────────────────────────────────────────────────────────
-
-def pkt_color(r, g, b, lum=100):
-    return bytes([0xFB, 0xFB, 0xFB, 0x0A]) + ROLLING + bytes([
-        0x00, 0x00,   # scene_id
-        0x22,         # solid color mode
-        lum & 0xFF,   # brightness 0-100
-        0x00, 0x00,   # speed
-        0x00, 0x00,   # defcol, multicolor
-        r, g, b,
-        0x00,
-    ])
-
-def pkt_off():
-    return bytes([0xFB, 0xFB, 0xFB, 0x0A]) + ROLLING + bytes(12)
 
 
 # ── Shared color/brightness state ──────────────────────────────────────────────
@@ -174,8 +154,8 @@ class WLEDHttpHandler(BaseHTTPRequestHandler):
                     WLED_STATE["bri"] = data["bri"]
                 if data.get("on") is False:
                     set_color(0, 0, 0)
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"  HTTP POST /json/state parse error: {e}")
             resp = b"{}"
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -208,16 +188,15 @@ class WLEDUdpHandler(socketserver.BaseRequestHandler):
         elif protocol == 0x01:          # WARLS — [proto][timeout][idx][R][G][B]...
             i = 2
             while i + 3 <= len(data):
-                idx = data[i]
-                if idx == 0:
+                if data[i] == 0:
                     set_color(data[i+1], data[i+2], data[i+3])
+                    break               # single-zone device — only pixel 0 matters
                 i += 4
 
 
 # ── BLE loop ───────────────────────────────────────────────────────────────────
 
 async def ble_loop():
-    global _pending
     last_sent = None
     last_lum  = None
     last_time = 0.0
@@ -231,7 +210,7 @@ async def ble_loop():
                 await asyncio.sleep(0.5)
 
                 while client.is_connected:
-                    now = asyncio.get_event_loop().time()
+                    now = asyncio.get_running_loop().time()
                     with _lock:
                         color = _pending
                         lum   = _global_lum

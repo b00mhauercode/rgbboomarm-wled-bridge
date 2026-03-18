@@ -5,28 +5,7 @@ Run this after setting your DEVICE_MAC and ROLLING below.
 """
 import asyncio
 from bleak import BleakClient
-
-# ── Configuration — fill these in before running ───────────────────────────────
-DEVICE_MAC = "XX:XX:XX:XX:XX:XX"   # Your device MAC (use a BLE scanner app to find it)
-ROLLING    = bytes.fromhex("XXXXXXXX")  # Your 4-byte rolling code — see README for how to find it
-# ──────────────────────────────────────────────────────────────────────────────
-
-FFF3_UUID  = "0000fff3-0000-1000-8000-00805f9b34fb"
-FFF4_UUID  = "0000fff4-0000-1000-8000-00805f9b34fb"
-
-def pkt_color(r=255, g=255, b=255, lum=100):
-    return bytes([0xFB, 0xFB, 0xFB, 0x0A]) + ROLLING + bytes([
-        0x00, 0x00,   # scene_id
-        0x22,         # solid color mode
-        lum & 0xFF,   # brightness 0-100
-        0x00, 0x00,   # speed
-        0x00, 0x00,   # defcol, multicolor
-        r, g, b,      # RGB
-        0x00,
-    ])
-
-def pkt_off():
-    return bytes([0xFB, 0xFB, 0xFB, 0x0A]) + ROLLING + bytes(12)
+from manka_proto import DEVICE_MAC, ROLLING, FFF3_UUID, FFF4_UUID, pkt_color, pkt_off
 
 responses = []
 def notify_handler(sender, data):

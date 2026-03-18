@@ -20,33 +20,11 @@ import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 from bleak import BleakClient
-
-# ── Configuration — fill these in before running ───────────────────────────────
-DEVICE_MAC = "XX:XX:XX:XX:XX:XX"   # Your device MAC (use a BLE scanner app to find it)
-ROLLING    = bytes.fromhex("XXXXXXXX")  # Your 4-byte rolling code — see README for how to find it
-# ──────────────────────────────────────────────────────────────────────────────
-
-FFF3_UUID  = "0000fff3-0000-1000-8000-00805f9b34fb"
-FFF4_UUID  = "0000fff4-0000-1000-8000-00805f9b34fb"
+from manka_proto import DEVICE_MAC, ROLLING, FFF3_UUID, FFF4_UUID, pkt_color, pkt_off
 
 PORT = 12345
 SEND_INTERVAL = 0.05   # max 20Hz BLE writes
 RECONNECT_DELAY = 5.0
-
-
-def pkt_color(r, g, b, lum=100):
-    return bytes([0xFB, 0xFB, 0xFB, 0x0A]) + ROLLING + bytes([
-        0x00, 0x00,   # scene_id
-        0x22,         # solid color mode
-        lum & 0xFF,   # brightness 0-100
-        0x00, 0x00,   # speed
-        0x00, 0x00,   # defcol, multicolor
-        r, g, b,
-        0x00,
-    ])
-
-def pkt_off():
-    return bytes([0xFB, 0xFB, 0xFB, 0x0A]) + ROLLING + bytes(12)
 
 
 # --- Shared state (thread-safe) ---
@@ -74,7 +52,6 @@ class Handler(BaseHTTPRequestHandler):
 
 
 async def ble_loop():
-    global _pending
     last_sent = None
     last_time = 0.0
 
@@ -88,7 +65,7 @@ async def ble_loop():
                 await asyncio.sleep(0.5)
 
                 while client.is_connected:
-                    now = asyncio.get_event_loop().time()
+                    now = asyncio.get_running_loop().time()
 
                     with _lock:
                         color = _pending

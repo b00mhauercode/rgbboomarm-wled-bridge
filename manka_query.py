@@ -8,14 +8,7 @@ Included for reference / future investigation.
 """
 import asyncio
 from bleak import BleakClient
-
-# ── Configuration — fill these in before running ───────────────────────────────
-DEVICE_MAC = "XX:XX:XX:XX:XX:XX"   # Your device MAC (use a BLE scanner app to find it)
-ROLLING    = bytes.fromhex("XXXXXXXX")  # Your 4-byte rolling code — see README for how to find it
-# ──────────────────────────────────────────────────────────────────────────────
-
-FFF3_UUID  = "0000fff3-0000-1000-8000-00805f9b34fb"
-FFF4_UUID  = "0000fff4-0000-1000-8000-00805f9b34fb"
+from manka_proto import DEVICE_MAC, ROLLING, FFF3_UUID, FFF4_UUID
 
 def pad20(b):
     assert len(b) <= 20

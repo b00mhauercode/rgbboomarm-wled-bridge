@@ -535,6 +535,24 @@ Everything runs locally on a single machine. No cloud, no internet, no external 
 
 ---
 
+## LED Hardware Notes
+
+### Single-zone strip — no per-LED addressing
+
+The SUNMON boom arm contains a multi-LED strip but the entire strip is driven as a **single zone**. There is no way to address individual LEDs through the known protocol.
+
+This was confirmed by sweeping all 256 mode bytes (0x00–0xFF) and observing the results:
+
+- Every mode affects the entire strip simultaneously — no chasing, no segmented colors
+- Some mode bytes trigger built-in animations (fades, breathing) which confirm the strip has many LEDs driven by PWM
+- No mode produced independent color control of different LEDs
+
+The protocol sends a single RGB triplet per packet (`r, g, b` at offsets 16–18). There is no pixel index, pixel count, or per-LED payload field anywhere in the packet format.
+
+**Practical implication:** For SignalRGB or any other ambient lighting tool, the strip should be configured as a **1-pixel device**. Sending multiple pixels serves no purpose — only the first (or averaged) color will apply.
+
+---
+
 ## Future Work
 
 - [ ] **Apple HomeKit / Homebridge** — expose the strip as a HomeKit accessory via a Homebridge plugin

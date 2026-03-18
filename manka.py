@@ -23,31 +23,10 @@ Scene/effect exploration (CMD=0x0A, vary scene_id and mode byte):
 import asyncio
 import sys
 from bleak import BleakClient
+from manka_proto import DEVICE_MAC, ROLLING, FFF3_UUID, FFF4_UUID, pkt_color, pkt_off
 
-# ── Configuration — fill these in before running ───────────────────────────────
-DEVICE_MAC = "XX:XX:XX:XX:XX:XX"   # Your device MAC (use a BLE scanner app to find it)
-ROLLING    = bytes.fromhex("XXXXXXXX")  # Your 4-byte rolling code — see README for how to find it
-# ──────────────────────────────────────────────────────────────────────────────
-
-FFF3_UUID  = "0000fff3-0000-1000-8000-00805f9b34fb"
-FFF4_UUID  = "0000fff4-0000-1000-8000-00805f9b34fb"
-
-# Current state (in-memory only — persists while script is running)
+# Default on/bright state — each invocation is independent (no persistence between runs)
 _state = {"r": 255, "g": 255, "b": 255, "lum": 100}
-
-def pkt_color(r, g, b, lum):
-    return bytes([0xFB, 0xFB, 0xFB, 0x0A]) + ROLLING + bytes([
-        0x00, 0x00,  # scene_id
-        0x22,        # solid color mode
-        lum & 0xFF,  # brightness 0-100
-        0x00, 0x00,  # speed
-        0x00, 0x00,  # defcol, multicolor
-        r, g, b,
-        0x00,
-    ])
-
-def pkt_off():
-    return bytes([0xFB, 0xFB, 0xFB, 0x0A]) + ROLLING + bytes(12)
 
 def pkt_scene(scene_id, mode_byte=0x22, r=255, g=255, b=255, lum=100):
     """
