@@ -26,3 +26,6 @@ bugreport*
 
 # Throwaway test/scratch scripts
 test_*.py
+
+# Claude Code session data
+.claude/

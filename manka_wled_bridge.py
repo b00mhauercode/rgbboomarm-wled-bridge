@@ -8,7 +8,7 @@ Usage:
   (Port 80 requires admin on Windows)
 
 In SignalRGB:
-  Home → Lighting Services → WLED → "Discover WLED device by IP" → 127.0.0.1
+  Home -> Lighting Services -> WLED -> "Discover WLED device by IP" -> 127.0.0.1
   Press Enter, wait a moment — "MANKA LED Strip" will appear and you can link it.
 """
 import asyncio
@@ -31,6 +31,10 @@ HTTP_PORT       = 80
 UDP_PORT        = 21324
 SEND_INTERVAL   = 0.05   # max 20 Hz BLE writes
 RECONNECT_DELAY = 5.0
+EASE_FACTOR     = 0.18   # fraction of remaining distance to close per frame (lower = slower)
+SNAP_THRESHOLD  = 1.5    # snap to target when this close (avoids infinite crawl)
+SCENE_CUT_DELTA = 220    # if any channel jumps more than this, snap instantly instead of fading
+                         # set to 255 to disable scene-cut snapping entirely
 
 
 # ── Shared color/brightness state ──────────────────────────────────────────────
@@ -197,9 +201,12 @@ class WLEDUdpHandler(socketserver.BaseRequestHandler):
 # ── BLE loop ───────────────────────────────────────────────────────────────────
 
 async def ble_loop():
-    last_sent = None
-    last_lum  = None
-    last_time = 0.0
+    last_sent  = None
+    last_lum   = None
+    last_time  = 0.0
+    smooth_r   = 0.0
+    smooth_g   = 0.0
+    smooth_b   = 0.0
 
     print(f"Connecting to BLE {DEVICE_MAC}...")
     while True:
@@ -215,9 +222,24 @@ async def ble_loop():
                         color = _pending
                         lum   = _global_lum
 
-                    if color is not None and (color != last_sent or lum != last_lum) \
-                            and (now - last_time) >= SEND_INTERVAL:
-                        r, g, b = color
+                    if color is not None and (now - last_time) >= SEND_INTERVAL:
+                        tr, tg, tb = color
+                        # scene-cut: snap instantly on large jumps
+                        if max(abs(tr - smooth_r), abs(tg - smooth_g), abs(tb - smooth_b)) > SCENE_CUT_DELTA:
+                            smooth_r, smooth_g, smooth_b = float(tr), float(tg), float(tb)
+                        else:
+                            def _ease(cur, tgt):
+                                diff = tgt - cur
+                                if abs(diff) <= SNAP_THRESHOLD:
+                                    return float(tgt)
+                                return cur + diff * EASE_FACTOR
+                            smooth_r = _ease(smooth_r, tr)
+                            smooth_g = _ease(smooth_g, tg)
+                            smooth_b = _ease(smooth_b, tb)
+                        r, g, b = round(smooth_r), round(smooth_g), round(smooth_b)
+                        if (r, g, b) == last_sent and lum == last_lum:
+                            await asyncio.sleep(0.02)
+                            continue
                         pkt = pkt_off() if (r == 0 and g == 0 and b == 0) \
                               else pkt_color(r, g, b, lum)
                         try:
@@ -256,13 +278,13 @@ def main():
     except PermissionError:
         user = os.environ.get("USERNAME", "Everyone")
         print(f"\nERROR: Port 80 requires Administrator privileges.")
-        print(f"  Option A: Right-click your terminal → 'Run as administrator'")
+        print(f"  Option A: Right-click your terminal -> 'Run as administrator'")
         print(f"  Option B (one-time): run this in an admin prompt, then re-run normally:")
         print(f"    netsh http add urlacl url=http://+:80/ user={user}")
         sys.exit(1)
 
     print()
-    print("In SignalRGB: Lighting Services → WLED → enter IP: 127.0.0.1")
+    print("In SignalRGB: Lighting Services -> WLED -> enter IP: 127.0.0.1")
     print("Ctrl+C to quit\n")
 
     try:
