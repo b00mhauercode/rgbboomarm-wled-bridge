@@ -528,7 +528,6 @@ Everything runs locally on a single machine. No cloud, no internet, no external 
 |---|---|
 | `manka.py` | Standalone CLI controller — on/off/colors/rgb/brightness |
 | `manka_wled_bridge.py` | **Main integration** — WLED emulator + BLE bridge for SignalRGB |
-| `manka_bridge.py` | Simple HTTP bridge (port 12345) — alternative if WLED approach causes issues |
 | `parse_btsnoop.py` | HCI snoop log parser — use this to find your rolling code |
 | `manka_test.py` | Development test script — sends a color sequence to verify the strip responds |
 | `manka_query.py` | BLE query/debug tool — tests query commands and logs FFF4 responses |

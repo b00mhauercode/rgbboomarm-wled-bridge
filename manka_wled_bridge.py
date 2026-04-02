@@ -29,9 +29,9 @@ except ImportError:
 
 HTTP_PORT       = 80
 UDP_PORT        = 21324
-SEND_INTERVAL   = 0.05   # max 20 Hz BLE writes
+SEND_INTERVAL   = 0.033  # ~30 Hz BLE writes
 RECONNECT_DELAY = 5.0
-EASE_FACTOR     = 0.18   # fraction of remaining distance to close per frame (lower = slower)
+EASE_FACTOR     = 0.30   # fraction of remaining distance to close per frame (lower = slower)
 SNAP_THRESHOLD  = 1.5    # snap to target when this close (avoids infinite crawl)
 SCENE_CUT_DELTA = 220    # if any channel jumps more than this, snap instantly instead of fading
                          # set to 255 to disable scene-cut snapping entirely
@@ -216,44 +216,55 @@ async def ble_loop():
                 await client.start_notify(FFF4_UUID, lambda s, d: None)
                 await asyncio.sleep(0.5)
 
-                while client.is_connected:
-                    now = asyncio.get_running_loop().time()
-                    with _lock:
-                        color = _pending
-                        lum   = _global_lum
+                try:
+                    while client.is_connected:
+                        now = asyncio.get_running_loop().time()
+                        with _lock:
+                            color = _pending
+                            lum   = _global_lum
 
-                    if color is not None and (now - last_time) >= SEND_INTERVAL:
-                        tr, tg, tb = color
-                        # scene-cut: snap instantly on large jumps
-                        if max(abs(tr - smooth_r), abs(tg - smooth_g), abs(tb - smooth_b)) > SCENE_CUT_DELTA:
-                            smooth_r, smooth_g, smooth_b = float(tr), float(tg), float(tb)
-                        else:
-                            def _ease(cur, tgt):
-                                diff = tgt - cur
-                                if abs(diff) <= SNAP_THRESHOLD:
-                                    return float(tgt)
-                                return cur + diff * EASE_FACTOR
-                            smooth_r = _ease(smooth_r, tr)
-                            smooth_g = _ease(smooth_g, tg)
-                            smooth_b = _ease(smooth_b, tb)
-                        r, g, b = round(smooth_r), round(smooth_g), round(smooth_b)
-                        if (r, g, b) == last_sent and lum == last_lum:
-                            await asyncio.sleep(0.02)
-                            continue
-                        pkt = pkt_off() if (r == 0 and g == 0 and b == 0) \
-                              else pkt_color(r, g, b, lum)
-                        try:
-                            await client.write_gatt_char(FFF3_UUID, pkt, response=False)
-                            last_sent = color
-                            last_lum  = lum
-                            last_time = now
-                            print(f"  BLE -> rgb({r:3d},{g:3d},{b:3d}) lum={lum}%")
-                        except Exception as e:
-                            print(f"  BLE write error: {e}")
-                            break
+                        if color is not None and (now - last_time) >= SEND_INTERVAL:
+                            tr, tg, tb = color
+                            # scene-cut: snap instantly on large jumps
+                            if max(abs(tr - smooth_r), abs(tg - smooth_g), abs(tb - smooth_b)) > SCENE_CUT_DELTA:
+                                smooth_r, smooth_g, smooth_b = float(tr), float(tg), float(tb)
+                            else:
+                                def _ease(cur, tgt):
+                                    diff = tgt - cur
+                                    if abs(diff) <= SNAP_THRESHOLD:
+                                        return float(tgt)
+                                    return cur + diff * EASE_FACTOR
+                                smooth_r = _ease(smooth_r, tr)
+                                smooth_g = _ease(smooth_g, tg)
+                                smooth_b = _ease(smooth_b, tb)
+                            r, g, b = round(smooth_r), round(smooth_g), round(smooth_b)
+                            if (r, g, b) == last_sent and lum == last_lum:
+                                await asyncio.sleep(0.02)
+                                continue
+                            pkt = pkt_off() if (r == 0 and g == 0 and b == 0) \
+                                  else pkt_color(r, g, b, lum)
+                            try:
+                                await client.write_gatt_char(FFF3_UUID, pkt, response=False)
+                                last_sent = color
+                                last_lum  = lum
+                                last_time = now
+                                print(f"  BLE -> rgb({r:3d},{g:3d},{b:3d}) lum={lum}%")
+                            except Exception as e:
+                                print(f"  BLE write error: {e}")
+                                break
 
-                    await asyncio.sleep(0.02)
+                        await asyncio.sleep(0.02)
 
+                except asyncio.CancelledError:
+                    try:
+                        await client.write_gatt_char(FFF3_UUID, pkt_off(), response=False)
+                        print("  -> off (shutdown)")
+                    except Exception:
+                        pass
+                    raise
+
+        except asyncio.CancelledError:
+            raise
         except Exception as e:
             print(f"BLE error: {e}")
         print(f"Reconnecting in {RECONNECT_DELAY}s...")
