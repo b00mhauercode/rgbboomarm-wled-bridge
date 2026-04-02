@@ -10,7 +10,6 @@ Reverse engineered from Android HCI snoop logs. See README for full protocol doc
 | `manka_proto.py` | **Shared protocol module** — UUIDs, `pkt_color`, `pkt_off`. All scripts import from here. |
 | `manka.py` | Standalone CLI — on/off/colors/rgb/brightness/scene/effect |
 | `manka_wled_bridge.py` | **Main integration** — emulates a WLED device for SignalRGB |
-| `manka_bridge.py` | Simpler HTTP bridge alternative (port 12345, no WLED emulation) |
 | `manka_query.py` | Debug/RE tool — sends query commands, logs FFF4 notifications |
 | `manka_test.py` | Dev test — sends a color sequence to verify the strip responds |
 | `parse_btsnoop.py` | Parses Android HCI snoop logs to extract the rolling code |
